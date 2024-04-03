@@ -22,6 +22,9 @@ sig
       | UnitV
       | ClosV of { env: rslVal Env.env, f: rslExp }
       | PromV of rslVal option ref  (* Promise value, for use with letrec *)
+      | ErrV of string
+
+
    and rslExp =
         Int of int
       | Bool of bool
@@ -33,6 +36,7 @@ sig
       | Call of rslExp * rslExp
       | Letrec of (string * rslExp) list * rslExp
       | Pair of rslExp * rslExp
+      | IsAPair of rslExp
       | Fst of rslExp
       | Snd of rslExp
       | Unit

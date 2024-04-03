@@ -34,6 +34,7 @@ struct
     | UnitV
     | ClosV of { env: rslVal Env.env, f: rslExp }
     | PromV of rslVal option ref  (* Promise value, for use with letrec *)
+    | ErrV of string
   
   and rslExp =
       Int of int
@@ -46,9 +47,27 @@ struct
     | Call of rslExp * rslExp
     | Letrec of (string * rslExp) list * rslExp
     | Pair of rslExp * rslExp
+    | IsAPair of rslExp
     | Fst of rslExp
     | Snd of rslExp
     | Unit
+
+    fun showExp exp =
+      case exp of
+          Int (i) => "Int(" ^ Int.toString(i) ^ ")"
+        | Bool (b) => "Bool(" ^ Bool.toString(b) ^ ")"
+        | Var (s) => "Var(" ^ s ^")"
+        | Binop _ => "BinOp"
+        | Logop _ => "LogOp"
+        | If _ => "If" 
+        | Func (s, e) => "Func(" ^ s ^ ", " ^ showExp e ^ ")" 
+        | Call _ => "Call"
+        | Letrec _ => "Letrec"
+        | Pair _ => "Pair"
+        | IsAPair _ => "IsAPair"
+        | Fst _ => "Fst"
+        | Snd _ => "Snd"
+        | Unit => "Unit"
 
     fun show v =
       case v of
@@ -58,6 +77,7 @@ struct
         | UnitV => "unit"
         | ClosV _ => "#closure"
         | PromV _ => "#promise"
+        | ErrV e => e
         
 
     fun typ v =
@@ -68,6 +88,7 @@ struct
         | ClosV _ => "closure"
         | UnitV => "unit"
         | PromV _ => "promise"
+        | ErrV _ => "error"
         
     fun evalEnv env exp =
         case exp of
@@ -80,11 +101,11 @@ struct
                         PromV (r) => 
                           (case (!r) of
                               SOME x => x
-                            | NONE => raise EvalError ("Reading an unset promise while resolving variable name " ^ s)
+                            | NONE => raise EvalError ("[1] Reading an unset promise while resolving variable name " ^ s)
                           )
                       | _ => x
                     )
-                | NONE => raise EvalError ("Unresolved variable name " ^ s)
+                | NONE => raise EvalError ("[2] Unresolved variable name " ^ s)
               )
           | Binop (oper, l, r) =>
               (case (evalEnv env l, evalEnv env r) of
@@ -96,7 +117,7 @@ struct
                           | DIV => IntV (i1 div i2)
                           | MOD => IntV (i1 mod i2)
                         )
-                  | (v1, v2) => raise EvalError ("Binop expects integers. Instead found: "
+                  | (v1, v2) => raise EvalError ("[3] Binop expects integers. Instead found: "
                             ^ typ (PairV (v1, v2))))
           | Logop (oper, l, r) =>
                 (case (evalEnv env l, evalEnv env r) of
@@ -104,37 +125,39 @@ struct
                         (case oper of
                             EQ => BoolV (b1 = b2)
                           | NEQ => BoolV (b1 <> b2)
-                          | _ => raise EvalError ("Logop EQ or NEQ expected for bools.")
+                          | _ => raise EvalError ("[4] Logop EQ or NEQ expected for bools.")
                         )
                   | (IntV i1, IntV i2) =>
                         (case oper of
                             LT => BoolV (i1 < i2)
                           | LE => BoolV (i1 <= i2)
-                          | _ => raise EvalError ("Logop LT or LE expected for ints.")
+                          | _ => raise EvalError ("[5] Logop LT or LE expected for ints.")
                         )
-                  | (v1, v2) => raise EvalError ("Logop expects either ints or bools. Instead found: "
+                  | (v1, v2) => raise EvalError ("[6] Logop expects either ints or bools. Instead found: "
                             ^ typ (PairV (v1, v2))))
           | If (c, t, e) => 
                 (case evalEnv env c of
                     BoolV (b) => if b then evalEnv env t else evalEnv env e
-                  | _ => raise EvalError "If operation applied to non-bool"
+                  | _ => raise EvalError "[7] If operation applied to non-bool"
                 )
-          | Func (s, exp) => ClosV { env = env, f = exp }
+          | Func _ => ClosV { env = env, f = exp }
           | Call (funexp, actual) =>
               let 
                 val vFn = evalEnv env funexp
                 val vAct = evalEnv env actual in
                 (case vFn of
-                    ClosV { env, f } =>
-                      (case funexp of
+                    ClosV { env, f } => 
+                      (case f of
                           Func (funArg, funBody) =>
                             let val newEnv = Env.empty
                                 val currEnv = Env.insert newEnv (funArg, vAct)
                             in
                               evalEnv (Env.concat env currEnv) funBody
                             end
-                        | _ => raise EvalError "MUPL call operation must have funexp subexpression of closure evaluated to Func")
-                  | _ => raise EvalError "MUPL call operation must have first subexpression evaluated to closure")
+
+                        | _ => raise EvalError ("[8] call oper. must have a Func as f, got " ^ showExp f))
+                
+                  | _ => raise EvalError ("[9] call oper. must have first subexpression, got " ^ show vFn))
               end
           | Letrec (exps, body) =>
               let
@@ -153,21 +176,28 @@ struct
                 val v2 = evalEnv env e2 in
                   PairV (v1, v2)
               end
+          | IsAPair (e) =>
+              let
+                val v = evalEnv env e in
+                (case v of
+                    PairV _ => BoolV(true)
+                  | _ => BoolV(false))
+              end
           | Fst (e) =>
               let val v = evalEnv env e in
                 (case v of
                     PairV (e1, _) => e1 
-                  | _ => raise EvalError "fst operation applied to non-pair"
+                  | _ => raise EvalError "[10] fst operation applied to non-pair"
                 )
               end
           | Snd (e) =>
               let val v = evalEnv env e in
                 (case v of
                     PairV (_, e2) => e2 
-                  | _ => raise EvalError "snd operation applied to non-pair"
+                  | _ => raise EvalError "[11] snd operation applied to non-pair"
                 )
               end
           | Unit => UnitV
 
-    fun eval exp = evalEnv Env.empty exp
+    fun eval exp = (evalEnv Env.empty exp) handle EvalError (msg) => ErrV (msg) 
 end
