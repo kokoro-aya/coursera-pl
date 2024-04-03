@@ -126,14 +126,14 @@ struct
                 val vAct = evalEnv env actual in
                 (case vFn of
                     ClosV { env, f } =>
-                      (case f of
+                      (case funexp of
                           Func (funArg, funBody) =>
                             let val newEnv = Env.empty
                                 val currEnv = Env.insert newEnv (funArg, vAct)
                             in
                               evalEnv (Env.concat env currEnv) funBody
                             end
-                        | _ => raise EvalError "MUPL call operation must have inner subexpression of closure evaluated to Func")
+                        | _ => raise EvalError "MUPL call operation must have funexp subexpression of closure evaluated to Func")
                   | _ => raise EvalError "MUPL call operation must have first subexpression evaluated to closure")
               end
           | Letrec (exps, body) =>
