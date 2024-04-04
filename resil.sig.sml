@@ -18,6 +18,7 @@ sig
    datatype rslVal =
         IntV of int
       | BoolV of bool
+      | StrV of string
       | PairV of rslVal * rslVal
       | UnitV
       | ClosV of { env: rslVal Env.env, f: rslExp }
@@ -28,12 +29,14 @@ sig
    and rslExp =
         Int of int
       | Bool of bool
+      | Str of string
       | Var of string
       | Binop of binop * rslExp * rslExp
       | Logop of logop * rslExp * rslExp
       | If of rslExp * rslExp * rslExp
       | Func of string * rslExp
       | Call of rslExp * rslExp
+      | CallDyn of rslExp * rslExp
       | Letrec of (string * rslExp) list * rslExp
       | Pair of rslExp * rslExp
       | IsAPair of rslExp

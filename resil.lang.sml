@@ -30,6 +30,7 @@ struct
   datatype rslVal =
       IntV of int
     | BoolV of bool
+    | StrV of string
     | PairV of rslVal * rslVal
     | UnitV
     | ClosV of { env: rslVal Env.env, f: rslExp }
@@ -39,12 +40,14 @@ struct
   and rslExp =
       Int of int
     | Bool of bool
+    | Str of string
     | Var of string
     | Binop of binop * rslExp * rslExp
     | Logop of logop * rslExp * rslExp
     | If of rslExp * rslExp * rslExp
     | Func of string * rslExp
     | Call of rslExp * rslExp
+    | CallDyn of rslExp * rslExp
     | Letrec of (string * rslExp) list * rslExp
     | Pair of rslExp * rslExp
     | IsAPair of rslExp
@@ -56,12 +59,14 @@ struct
       case exp of
           Int (i) => "Int(" ^ Int.toString(i) ^ ")"
         | Bool (b) => "Bool(" ^ Bool.toString(b) ^ ")"
+        | Str (s) => "Str(" ^ s ^ ")"
         | Var (s) => "Var(" ^ s ^")"
         | Binop _ => "BinOp"
         | Logop _ => "LogOp"
         | If _ => "If" 
         | Func (s, e) => "Func(" ^ s ^ ", " ^ showExp e ^ ")" 
         | Call _ => "Call"
+        | CallDyn _ => "CallDyn"
         | Letrec _ => "Letrec"
         | Pair _ => "Pair"
         | IsAPair _ => "IsAPair"
@@ -73,6 +78,7 @@ struct
       case v of
           IntV (i) => Int.toString(i) 
         | BoolV (b) => Bool.toString(b)
+        | StrV (s) => s
         | PairV (l, r) => "(" ^ show l ^ "," ^ show r ^ ")"
         | UnitV => "unit"
         | ClosV _ => "#closure"
@@ -84,6 +90,7 @@ struct
       case v of
           IntV _ => "int"
         | BoolV _ => "bool"
+        | StrV _ => "str"
         | PairV (a, b) => "(" ^ typ a ^ ", " ^ typ b ^ ")"
         | ClosV _ => "closure"
         | UnitV => "unit"
@@ -94,6 +101,7 @@ struct
         case exp of
             Int (i) => IntV i
           | Bool (b) => BoolV b
+          | Str (s) => StrV s
           | Var (s) =>
               (case Env.lookup env s of
                   SOME x => 
@@ -157,18 +165,37 @@ struct
 
                         | _ => raise EvalError ("[8] call oper. must have a Func as f, got " ^ showExp f))
                 
-                  | _ => raise EvalError ("[9] call oper. must have first subexpression, got " ^ show vFn))
+                  | _ => raise EvalError ("[9] call oper. must have first subexpr as Closure, got " ^ show vFn))
+              end
+          | CallDyn (dynName, actual) => 
+              let
+                val vFLabel = evalEnv env dynName
+                val vAct = evalEnv env actual in
+                (case vFLabel of
+                    StrV (name) =>
+                      (case Env.lookup env name of
+                          SOME (ClosV { env, f }) =>
+                            (case f of
+                              Func (funArg, funBody) =>
+                                let val newEnv = Env.empty
+                                    val currEnv = Env.insert newEnv (funArg, vAct)
+                                in
+                                  evalEnv (Env.concat env currEnv) funBody
+                                end
+                              | _ => raise EvalError ("[10] call oper. must have a Func as f, got " ^ showExp f))
+                          | NONE => raise EvalError ("[11] dyn call on unresolved name " ^ name))
+                  | _ => raise EvalError ("[12] dyn call must be invoked on StrV(..), got " ^ show vFLabel))
               end
           | Letrec (exps, body) =>
               let
-                val prefilledEnvs = List.foldl (fn ((s, _), acc) => Env.insert acc (s, PromV (ref NONE))) Env.empty exps
+                val prefilledEnvs = List.foldl (fn ((s, _), acc) => Env.insert acc (s, PromV (ref NONE))) env exps
                 val evaledEnvs = List.foldl (fn ((si, ei), acc) =>
                   let val exi = evalEnv acc ei in
                     Env.update acc si exi 
                   end
                 ) prefilledEnvs exps (* (string * rslVal) list aka rslVal env *)
               in
-                evalEnv (Env.concat evaledEnvs env) body
+                evalEnv evaledEnvs body
               end
           | Pair (e1, e2) =>
               let
@@ -187,14 +214,14 @@ struct
               let val v = evalEnv env e in
                 (case v of
                     PairV (e1, _) => e1 
-                  | _ => raise EvalError "[10] fst operation applied to non-pair"
+                  | _ => raise EvalError "[13] fst operation applied to non-pair"
                 )
               end
           | Snd (e) =>
               let val v = evalEnv env e in
                 (case v of
                     PairV (_, e2) => e2 
-                  | _ => raise EvalError "[11] snd operation applied to non-pair"
+                  | _ => raise EvalError "[14] snd operation applied to non-pair"
                 )
               end
           | Unit => UnitV
