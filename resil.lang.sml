@@ -1,5 +1,9 @@
 use "resil.sig.sml";
 
+fun joinString lst sep = case lst of
+    [] => ""
+  | x :: xs => x ^ sep ^ joinString xs sep
+
 structure Resil :> RSL =
 struct
 
@@ -22,6 +26,8 @@ struct
       | (a, b) :: xs => if a = s then (a, newV) :: xs else (a, b) :: update xs s newV
 
     fun concat env1 env2 = env1 @ env2
+
+    fun dumpNames env = joinString (List.map (fn (s, _) => s) env) ", "
   end
 
   datatype binop = ADD | SUB | MULT | DIV | MOD
@@ -183,7 +189,7 @@ struct
                                   evalEnv (Env.concat env currEnv) funBody
                                 end
                               | _ => raise EvalError ("[10] call oper. must have a Func as f, got " ^ showExp f))
-                          | NONE => raise EvalError ("[11] dyn call on unresolved name " ^ name))
+                          | NONE => raise EvalError ("[11] dyn call on unresolved name " ^ name ^ ", known:" ^ (Env.dumpNames env)))
                   | _ => raise EvalError ("[12] dyn call must be invoked on StrV(..), got " ^ show vFLabel))
               end
           | Letrec (exps, body) =>

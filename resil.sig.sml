@@ -6,6 +6,8 @@ sig
    val update: 'a env -> string -> 'a -> 'a env
    val lookup: 'a env -> string -> 'a option
    val concat: 'a env -> 'a env -> 'a env
+
+   val dumpNames: 'a env -> string
 end
 
 signature RSL =

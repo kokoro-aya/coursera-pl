@@ -75,6 +75,23 @@ val g1 = Resil.eval(Resil.Letrec(
     ],
     Resil.Call(Resil.Call(Resil.Call(Resil.Var("f"), Resil.Var("x")), Resil.Var("y")), Resil.Var("z"))))
 
+(* Will fail *)
+val g2 = Resil.eval(Resil.Letrec(
+    [
+      ("g", Resil.Letrec(
+                  [("a", Resil.Int(8))],
+                  Resil.Binop(Resil.ADD, Resil.Var("a"), Resil.Var("b"))
+                )),
+      ("f", Resil.Func("f", 
+                  Resil.Letrec(
+                    [("a", Resil.Int(6)),("b", Resil.Int(7))],
+                    Resil.Call(Resil.Call(Resil.Var("f"), Resil.Var("a")), Resil.Var("b"))
+                  )))
+                  
+    ],
+    Resil.Call(Resil.Var("f"), Resil.Var("g"))))
+
+
 (*
   class Rectangle {
     constructor (width, height) {
@@ -167,3 +184,50 @@ Resil.show (
     }
   }
 *)
+
+(*
+  val u = \f -> \x -> \y -> f x y
+
+  val g x y = x + y
+
+  u g 1 2
+
+*)
+
+val h1 = 
+  Resil.eval (
+    Resil.Letrec([
+      ("u", Resil.Func("f", Resil.Func("x", Resil.Func("y", Resil.Call(Resil.Call(Resil.Var("f"), Resil.Var("x")), Resil.Var("y")))))),
+      ("g", Resil.Func("x", Resil.Func("y", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Var("y")))))
+    ],
+      Resil.Call(Resil.Call(Resil.Call(Resil.Var("u"), Resil.Var("g")), Resil.Int(9)), Resil.Int(4))
+    )
+  )
+
+val i =
+
+  Resil.eval (
+    Resil.Letrec(
+      [("Animal", 
+          Resil.Func("name", 
+            Resil.Func("@f",
+                Resil.Letrec(
+                  [("myName", Resil.Func("_", Resil.Var("name"))),
+                    ("makeSound", Resil.Func("_", Resil.Pair(Resil.Str("Hello, I am"), Resil.Var("name"))))
+                  ],
+                    Resil.Func("fn",
+                      Resil.Func("arg",
+                        Resil.Call(Resil.Call(Resil.Var("@f"), Resil.Var("fn")), Resil.Var("arg"))
+                      ))))))],
+
+            Resil.Call(
+              Resil.Call(Resil.Var("Animal"), Resil.Str("cat")), 
+              Resil.Letrec(
+                [], 
+                  Resil.CallDyn(Resil.Str("myName"),
+                    Resil.Unit)))
+          
+    ))
+
+
+
