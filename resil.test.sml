@@ -210,22 +210,43 @@ val i =
     Resil.Letrec(
       [("Animal", 
           Resil.Func("name", 
-            Resil.Func("@f",
-                Resil.Letrec(
-                  [("myName", Resil.Func("_", Resil.Var("name"))),
-                    ("makeSound", Resil.Func("_", Resil.Pair(Resil.Str("Hello, I am"), Resil.Var("name"))))
-                  ],
-                    Resil.Func("fn",
-                      Resil.Func("arg",
-                        Resil.Call(Resil.Call(Resil.Var("@f"), Resil.Var("fn")), Resil.Var("arg"))
-                      ))))))],
-
-            Resil.Call(
-              Resil.Call(Resil.Var("Animal"), Resil.Str("cat")), 
+            Resil.Func("getter",
               Resil.Letrec(
-                [], 
-                  Resil.CallDyn(Resil.Str("myName"),
-                    Resil.Unit)))
+                [
+                  ("getName", Resil.Func("_", Resil.Var("name")))
+                ],
+                  Resil.CallDyn(Resil.Var("getter"), Resil.Unit)
+              )))),
+      ("Cat", 
+          Resil.Func("name",
+            Resil.Func("color", 
+              Resil.Func("getter",
+                Resil.Letrec(
+                  [
+                    ("getName", Resil.Func("_", Resil.Var("name")))
+                  ],
+                    Resil.CallDyn(Resil.Var("getter"), Resil.Unit)
+                ))))),
+      ("Animal#name", Resil.Func("animal", Resil.Call(Resil.Var("animal"), Resil.Str("getName")))),
+      ("Animal#makeSound", Resil.Func("animal", 
+        Resil.Pair(
+          Resil.Str("my name is"),
+          Resil.Call(Resil.Var("Animal#name"), Resil.Var("animal"))))),
+      ("Cat#makeSound", Resil.Func("cat", Resil.Str("meow"))),    
+
+      ("someAnimal", Resil.Call(Resil.Var("Animal"), Resil.Str("Alex"))),
+      ("someCat", Resil.Call(Resil.Call(Resil.Var("Cat"), Resil.Str("Bob")), Resil.Str("blue")))
+      ],
+      Resil.Pair(
+      Resil.Pair(
+        Resil.Call(Resil.Var("Animal#makeSound"), Resil.Var("someCat")),
+        Resil.Call(Resil.Var("Cat#makeSound"), Resil.Var("someCat"))
+      ),      
+      Resil.Pair(
+        Resil.Call(Resil.Var("Animal#name"), Resil.Var("someAnimal")),
+        Resil.Call(Resil.Var("Animal#name"), Resil.Var("someCat"))
+      )
+      )
           
     ))
 
