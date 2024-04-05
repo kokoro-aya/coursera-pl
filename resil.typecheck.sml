@@ -9,9 +9,11 @@ datatype rslType = IntT
                  | ParamT of string
                  | VarT of int * rslType option ref
 
+
 val paramCharCount = ref 1
 
 val varCount = ref 1
+
 
 fun toCharCodeList num = 
   if num < 1 
@@ -35,11 +37,13 @@ fun newParamType (): rslType =
     end
   end
 
+
 fun newVarType (): rslType = 
   let val res = VarT ((!varCount), ref NONE) in
     varCount := (!varCount) + 1;
     res
   end
+
 
 fun typeToString (typ: rslType): string = case typ of
         IntT => "int"
@@ -49,3 +53,28 @@ fun typeToString (typ: rslType): string = case typ of
       | FuncT (a, r) => typeToString a ^ " => " ^ typeToString r
       | ParamT s => "?" ^ s
       | VarT (i, _) => "X" ^ Int.toString i
+
+
+(*
+        val containsType: rslType -> rslType -> bool
+        val unify: rslType * rslType -> unit
+        val resolve: rslType -> rslType
+
+        val getConstraints: rslType E.env -> rslExp -> rslType * (rslType * rslType) list
+        val getAllConstraints: rslType E.env -> rslExp list -> rslType list * (rslType * rslType) list
+        val typecheck: rslExp -> rslType
+
+*)
+
+
+fun getConstraints (env: (string * rslType) E.env)  (exp: RSL.rslExp): rslType * (rslType * rslType) list =
+      case exp of
+          | Add (e1, e2) =>
+              let val t = newVarType()
+                  val (t1, cons1) = getContraints env e1
+                  val (t2, cons2) = getContraints env e2
+                  val allCons = (t, t1) :: (t1, t2) :: (t2, IntT) :: (cons1 @ cons2)
+              in (t, allCons)
+              end
+
+
