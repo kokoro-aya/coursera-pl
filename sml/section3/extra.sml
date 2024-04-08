@@ -1,19 +1,125 @@
 
-fun makeCounter i : unit -> int = fn () => i
+fun makeCounter i : unit -> int = 
+  let 
+    val cnt = ref i
+    fun f () =
+      let val last = !cnt
+      in
+        cnt := last + 1; last
+      end
+    in
+      f
+  end  
+  
 
-fun makeMultiCounter : unit -> string -> int = fn () => fn s => 1
+fun makeMultiCounter () : string -> int = 
+    let 
+    val dict: (string * int) list ref = ref []
+    fun f () (s: string) =
+      let val lastState: (string * int) list = !dict
+      in
+        let val nextNum: int = case (List.find (fn (label, _) => label = s) lastState) of
+            NONE => 1
+          | SOME (_,  num) => num + 1
+        in
+          dict := ((s, nextNum) :: lastState);
+          nextNum
+        end
+      end
+    in
+      f ()
+  end  
 
-fun makeMultiCounter2 : unit -> string -> int = fn () => fn s => 1
 
-fun gen (f: 'a -> 'a) (init: 'a) : unit -> 'a = false
 
-fun once (f: unit -> 'a): unit -> 'a = false
+fun gen (f: 'a -> 'a) (s: 'a) : unit -> 'a =
+  let
+    val storage = ref s
+    fun func () =
+     let val _ = storage := f (!storage) in (!storage) end
+  in
+    func 
+  end
 
-fun only (i: int) (f: unit -> 'a): unit -> 'a = false
+ fun makeCounterByGen i = gen (fn x => x + 1) (i-1)
 
-fun cache (f: 'a -> 'b): 'a -> 'b = false
 
-fun cache2 (i: int) (f: 'a -> 'b): 'a -> 'b = false
+fun once (f: unit -> 'a): unit -> 'a = 
+  let
+    val cachedRes = ref NONE
+    fun func () =
+      (case (!cachedRes) of
+          NONE => let
+                    val res = f () 
+                    val _ = cachedRes := SOME (res) in (res) end
+        | SOME x => x)
+    in
+      func
+  end
+
+
+fun only (sz: int) (f: unit -> 'a): unit -> 'a = 
+  let
+    val cachedRes = ref []
+    fun func () =
+      if (List.length (!cachedRes)) < sz then
+        let 
+          val res = f ()
+          val _ = cachedRes := res :: (!cachedRes)
+        in
+          res
+        end
+      else 
+        let
+          val lastItem = List.last (!cachedRes) 
+          val _ = cachedRes := lastItem :: List.take (!cachedRes, sz - 1) 
+        in
+          lastItem
+        end
+  in
+    func 
+  end
+
+
+(* ''a for equality *)
+fun cache (f: ''a -> 'b): ''a -> 'b = 
+  let 
+    val dict: (''a * 'b) list ref = ref []
+    fun f (actual: ''a) =
+      let val lastState: (''a * 'b) list = !dict
+      in
+        case (List.find (fn (arg, _) => arg = actual) lastState) of
+            NONE => 
+              let val res: 'b = f actual in
+                dict := (actual, res) :: lastState; res
+              end
+          | SOME (_,  value) => value 
+      end
+    in
+      f 
+  end  
+
+
+fun cacheWithSize (n: int) (f: ''a -> 'b): ''a -> 'b = 
+  let 
+    val dict: (''a * 'b) list ref = ref []
+    fun f (actual: ''a) =
+      let val lastState: (''a * 'b) list = !dict
+      in
+        case (List.find (fn (arg, _) => arg = actual) lastState) of
+            NONE => 
+              let val res: 'b = f actual in
+                dict := (actual, res) :: (if (List.length lastState) < n then lastState else List.take (lastState, List.length lastState - 1))
+                ; res
+              end
+          | SOME (_,  value) => value
+      end
+    in
+      f 
+  end  
+
+
+(*
 
 fun throttle (i: int) (f: 'a list -> unit): 'a -> unit = false
 
@@ -107,3 +213,5 @@ fun evalOp stk o =
    | (Neg, i1::stk')      => ...
    | (Print, i1::_)       => ...
    | _                    => ...
+
+*)
