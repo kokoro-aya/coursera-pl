@@ -190,26 +190,59 @@ fun befor (left: 'a) (right: 'b): 'a =
 
 (* A simple hash table *)
 
-(*
+fun createListOfInits a n = 
+  if n <= 0 then [] else a :: createListOfInits a (n - 1)
+
+fun initEmptyLists n = createListOfInits (ref []) n
+
+
 type 'a hashVector = 'a list ref vector
 
 type ('a, 'b) hashTable = { hash: 'a -> int, eq: 'a * 'a -> bool, size: int, vec: ('a * 'b) hashVector }
 
-val makeEmpty: ('a -> int, 'a * 'a -> bool, int) -> ('a, 'b) = false
+fun makeEmpty (hashFunc: 'a -> int, eqFunc: 'a * 'a -> bool, size: int): ('a, 'b) hashTable = 
+  { hash=hashFunc, eq=eqFunc, size=size, vec = Vector.fromList (initEmptyLists size) }
 
-val lookup_list: ('a * 'a -> bool) * ('a * 'b) list -> 'a -> 'b option = false
-val insert_list: ('a * 'a -> bool) * ('a * 'b) list -> ('a, 'b) -> unit = false
-val remove_list: ('a * 'a -> bool) * ('a * 'b) list -> 'a -> unit = false
+fun lookup_list (eqFunc: 'a * 'a -> bool) (lst: ('a * 'b) list) (key: 'a): 'b option = case lst of
+        [] => NONE
+      | (x, v) :: xs => if eqFunc (x, key) then SOME v else lookup_list eqFunc xs key
 
-val lookup: ('a, 'b) hashTable -> 'a -> 'b option = false
-val insert: ('a, 'b) hashTable -> 'a * 'b -> unit = false
-val remove: ('a, 'b) hashTable -> 'a -> unit = false
+fun insert_list (eqFunc: 'a * 'a -> bool) (lst: ('a * 'b) list) ((k, v1): 'a * 'b): ('a * 'b) list = case lst of
+        [] => (k, v1) :: []
+      | (x, v) :: xs => if eqFunc (x, k) then (x, v1) :: xs else (x, v) :: insert_list eqFunc xs (k, v1)
 
-*)
+fun remove_list (eqFunc: 'a * 'a -> bool) (lst: ('a * 'b) list) (key: 'a): ('a * 'b) list = case lst of
+        [] => []
+      | (x, v) :: xs => if eqFunc (x, key) then xs else (x, v) :: remove_list eqFunc xs key
+
+fun lookup ({ hash, eq, size, vec }: ('a, 'b) hashTable) (k: 'a): 'b option =
+        let val idx = hash k 
+            val inner = Vector.sub (vec, idx)
+            val res = lookup_list eq (!inner) k
+        in
+          res
+        end
+
+fun insert ({ hash, eq, size, vec }: ('a, 'b) hashTable) ((k, v): ('a * 'b)): unit = 
+        let val idx = hash k
+            val inner = Vector.sub (vec, idx)
+            val updated = insert_list eq (!inner) (k, v)
+        in
+          Vector.update (vec, idx, (ref updated)) ; ()
+        end
+
+fun remove ({ hash, eq, size, vec }: ('a, 'b) hashTable) (k: 'a): unit =
+        let val idx = hash k 
+            val inner = Vector.sub (vec, idx)
+            val updated = remove_list eq (!inner) k
+        in
+          Vector.update (vec, idx, (ref updated)) ; ()
+        end
+
 
 (* A simple calculator *)
 
-(*
+
 
 datatype Exp = Add of Exp * Exp
              | Sub of Exp * Exp
@@ -224,32 +257,43 @@ exception UnboundVar of string
 
 type memory = (string * int) list
 
-val save: memory -> string * int -> memory = false
-val load: memory -> string -> int = false
+val empty_memory: memory = []
 
-val evalExp: memory -> Exp -> int = false
-val evalStm: memory -> Stm -> memory = false
+fun save (mem: memory) (var: (string * int)): memory =
+  var :: mem
 
-fun evalExp mem e =
+fun load (mem: memory) (name: string): int = case mem of
+      [] => raise UnboundVar name
+    | (label, value) :: xs => if name = label then value else load xs name
+
+
+fun evalExp (mem: memory) (e: Exp): int =
    let val ev = evalExp mem
    in
       case e of
-        Add (e1, e2)       => ...
-      | Sub (e1, e2)       => ...
-      | Mult (e1, e2)      => ...
-      | Const i            => ...
-      | Var s              => ...
-      | Compound (stms, e) => ...
+        Add (e1, e2)       => evalExp mem e1 + evalExp mem e2
+      | Sub (e1, e2)       => evalExp mem e1 - evalExp mem e2
+      | Mult (e1, e2)      => evalExp mem e1 * evalExp mem e2
+      | Const i            => i
+      | Var s              => load mem s
+      | Compound (stms, ex) => 
+          let val env = List.foldl (fn (stm, m1) => evalStm m1 stm) empty_memory stms
+          in
+            evalExp env ex
+          end
    end
-and evalStm mem stm =
+and evalStm (mem: memory) (stm: Stm): memory =
    case stm of
-     Assign (s, e)      => ...
-   | Print (Var s)      => ...
-   | Print e            => ...
+     Assign (s, e)      => save mem (s, (evalExp mem e))
+   | Print (Var s)      => 
+      let val _ = print (Int.toString (load mem s)) in mem end
+   | Print e            => 
+      let val _ = print (Int.toString (evalExp mem e)) in mem end
+
+
 val eval = evalExp []    (* Shortcut for evaluation with empty memory. No need to change. *)
 
 
-*)
 
 (* Simple stack-based calculator *)
 
@@ -261,27 +305,25 @@ fun stack_push stack v: stack = v :: stack
 
 fun stack_pop (s: stack): int * stack = (List.hd s, List.tl s)
 
-datatype oper = Push of int | Pop | Add | Sub | Mult | Neg | Print
+datatype oper = PUSH of int | POP | ADD | SUB | MULT | NEG | PRINT
 
 
 fun evalOp (stk: stack) (oper: oper): stack =
    case (oper, stk) of
-     (Push i, _)          => stack_push stk i
-   | (Pop, _::stk')       => stk'
-   | (Add, i1::i2::stk')  => stack_push stk' (i1 + i2)
-   | (Sub, i1::i2::stk')  => stack_push stk' (i1 - i2)
-   | (Mult, i1::i2::stk') => stack_push stk' (i1 * i2)
-   | (Neg, i1::stk')      => stack_push stk' (~i1)
-   | (Print, i1::_)       => 
+     (PUSH i, _)          => stack_push stk i
+   | (POP, _::stk')       => stk'
+   | (ADD, i1::i2::stk')  => stack_push stk' (i1 + i2)
+   | (SUB, i1::i2::stk')  => stack_push stk' (i1 - i2)
+   | (MULT, i1::i2::stk') => stack_push stk' (i1 * i2)
+   | (NEG, i1::stk')      => stack_push stk' (~i1)
+   | (PRINT, i1::_)       => 
         let val _ = print (Int.toString i1) in stk end
    | _                    => 
         let val _ = print "Error found" in stk end
 
-fun eval (opers: oper list): unit =
+fun eval1 (opers: oper list): unit =
   let 
     val _ = List.foldl (fn (oper, st) => evalOp st oper) (stack_empty ()) opers 
   in 
     ()
   end
-
-val a = [Push 3, Push 4, Add, Print]

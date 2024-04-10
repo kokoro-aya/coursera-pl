@@ -18,3 +18,9 @@ val f3 = only 2 f3s
 val c1 = f3 () = 2
 val c2 = f3 () = 3
 val c3 = f3 () = 2
+
+
+val exp1 = eval (Compound ([Assign ("y", Add(Const 2, Const 3)), Print (Var "y")], Add (Var "y", Const 1)))
+val e1 = exp1 = 6
+
+val opers = [PUSH 3, PUSH 4, ADD, PRINT]
