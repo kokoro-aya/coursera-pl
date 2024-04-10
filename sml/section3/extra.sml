@@ -46,12 +46,12 @@ fun gen (f: 'a -> 'a) (s: 'a) : unit -> 'a =
 
 fun once (f: unit -> 'a): unit -> 'a = 
   let
-    val cachedRes = ref NONE
+    val cachedRes: 'a option ref = ref NONE
     fun func () =
       (case (!cachedRes) of
           NONE => let
                     val res = f () 
-                    val _ = cachedRes := SOME (res) in (res) end
+                    val _ = cachedRes := SOME res in res end
         | SOME x => x)
     in
       func
@@ -60,7 +60,7 @@ fun once (f: unit -> 'a): unit -> 'a =
 
 fun only (sz: int) (f: unit -> 'a): unit -> 'a = 
   let
-    val cachedRes = ref []
+    val cachedRes: 'a list ref = ref []
     fun func () =
       if (List.length (!cachedRes)) < sz then
         let 
@@ -85,7 +85,7 @@ fun only (sz: int) (f: unit -> 'a): unit -> 'a =
 fun cache (f: ''a -> 'b): ''a -> 'b = 
   let 
     val dict: (''a * 'b) list ref = ref []
-    fun f (actual: ''a) =
+    fun func (actual: ''a) =
       let val lastState: (''a * 'b) list = !dict
       in
         case (List.find (fn (arg, _) => arg = actual) lastState) of
@@ -96,14 +96,14 @@ fun cache (f: ''a -> 'b): ''a -> 'b =
           | SOME (_,  value) => value 
       end
     in
-      f 
+      func 
   end  
 
 
 fun cacheWithSize (n: int) (f: ''a -> 'b): ''a -> 'b = 
   let 
     val dict: (''a * 'b) list ref = ref []
-    fun f (actual: ''a) =
+    fun func (actual: ''a) =
       let val lastState: (''a * 'b) list = !dict
       in
         case (List.find (fn (arg, _) => arg = actual) lastState) of
@@ -115,24 +115,82 @@ fun cacheWithSize (n: int) (f: ''a -> 'b): ''a -> 'b =
           | SOME (_,  value) => value
       end
     in
-      f 
+      func
   end  
 
 
-(*
+fun throttle (n: int) (f: 'a list -> unit) : 'a -> unit =
+  let
+    val cached: 'a list ref = ref []
+    fun func (el: 'a) =
+      let val _ = cached := el :: (!cached) 
+      in
+        if List.length (!cached) = n then
+          let 
+            val res = f (!cached)
+          in
+            cached := []; res
+          end
+        else
+          ()
+      end
+  in
+    func
+  end
 
-fun throttle (i: int) (f: 'a list -> unit): 'a -> unit = false
+(* To test throttle function *)
+fun printList lst = case lst of
+  [] => () | x :: xs => let val _ = print (Int.toString x) in printList xs end
 
-fun throttle2 (i: int) (f: 'a -> unit): 'a -> unit = false
+val someFuncThrottle = throttle 3 printList
 
-fun delayed (f: 'a -> 'b) (v: 'a): 'a -> 'b = false
 
-fun befor (v: ('a * 'b)): 'a = false
+fun throttle2 (n: int) (f: 'a -> unit) : 'a -> unit =
+  let
+    val cached: 'a option ref = ref NONE
+    val count = ref 0
+    fun func (el: 'a) =
+      if (!count) < n then
+        let val _ = case (!cached) of
+            SOME _ => ()
+          | NONE => cached := SOME el 
+        in 
+          count := (!count) + 1
+        end
+      else
+        let val res = case (!cached) of
+            SOME x => f x | NONE => ()
+        in
+          cached := SOME el ; res
+        end
+  in
+    func
+  end
 
+fun delayed (f: 'a -> 'b) (v: 'a): 'a -> 'b =
+  let 
+    val lastArg = ref v
+    fun func (arg: 'a) =
+      let val res = f (!lastArg) in
+      lastArg := arg; res
+      end
+    in
+      func
+    end
+
+
+fun befor (left: 'a) (right: 'b): 'a =
+  let 
+    val evRes = left
+    val _ = right
+  in
+    evRes
+  end
 
 
 (* A simple hash table *)
 
+(*
 type 'a hashVector = 'a list ref vector
 
 type ('a, 'b) hashTable = { hash: 'a -> int, eq: 'a * 'a -> bool, size: int, vec: ('a * 'b) hashVector }
@@ -147,9 +205,11 @@ val lookup: ('a, 'b) hashTable -> 'a -> 'b option = false
 val insert: ('a, 'b) hashTable -> 'a * 'b -> unit = false
 val remove: ('a, 'b) hashTable -> 'a -> unit = false
 
-
+*)
 
 (* A simple calculator *)
+
+(*
 
 datatype Exp = Add of Exp * Exp
              | Sub of Exp * Exp
@@ -189,29 +249,39 @@ and evalStm mem stm =
 val eval = evalExp []    (* Shortcut for evaluation with empty memory. No need to change. *)
 
 
+*)
 
 (* Simple stack-based calculator *)
 
 exception Empty
 type stack = int list
-val empty: stack = false
-val push: stack -> int -> stack = false
-val pop: stack -> (i, stack) = false
+fun stack_empty (): stack = []
+
+fun stack_push stack v: stack = v :: stack
+
+fun stack_pop (s: stack): int * stack = (List.hd s, List.tl s)
 
 datatype oper = Push of int | Pop | Add | Sub | Mult | Neg | Print
 
-val evalOp: stack -> oper -> stack = false
-val eval: oper list -> unit = false
 
-fun evalOp stk o =
-   case (o, stk) of
-     (Push i, _)          => ...
-   | (Pop, _::stk')       => ...
-   | (Add, i1::i2::stk')  => ...
-   | (Sub, i1::i2::stk')  => ...
-   | (Mult, i1::i2::stk') => ...
-   | (Neg, i1::stk')      => ...
-   | (Print, i1::_)       => ...
-   | _                    => ...
+fun evalOp (stk: stack) (oper: oper): stack =
+   case (oper, stk) of
+     (Push i, _)          => stack_push stk i
+   | (Pop, _::stk')       => stk'
+   | (Add, i1::i2::stk')  => stack_push stk' (i1 + i2)
+   | (Sub, i1::i2::stk')  => stack_push stk' (i1 - i2)
+   | (Mult, i1::i2::stk') => stack_push stk' (i1 * i2)
+   | (Neg, i1::stk')      => stack_push stk' (~i1)
+   | (Print, i1::_)       => 
+        let val _ = print (Int.toString i1) in stk end
+   | _                    => 
+        let val _ = print "Error found" in stk end
 
-*)
+fun eval (opers: oper list): unit =
+  let 
+    val _ = List.foldl (fn (oper, st) => evalOp st oper) (stack_empty ()) opers 
+  in 
+    ()
+  end
+
+val a = [Push 3, Push 4, Add, Print]
