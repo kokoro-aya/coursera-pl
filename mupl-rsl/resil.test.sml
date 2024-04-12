@@ -92,6 +92,20 @@ val g2 = Resil.eval(Resil.Letrec(
     Resil.Call(Resil.Var("f"), Resil.Var("g"))))
 
 
+(* Before implementation of forward reference:
+     ErrV "[1] Reading an unset promise while resolving variable name g" *
+   After:
+     IntV(2)
+     *)
+val g3 = Resil.eval(Resil.Letrec(
+  [
+    ("f", Resil.Func("x", Resil.Call(Resil.Var("g"), Resil.Unit))),
+    ("g", Resil.Func("x", Resil.Call(Resil.Var("h"), Resil.Unit))),
+    ("h", Resil.Func("x", Resil.Int(2)))
+  ],
+  Resil.Call(Resil.Var("f"), Resil.Unit))
+
+)
 (*
   class Rectangle {
     constructor (width, height) {

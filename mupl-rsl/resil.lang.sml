@@ -20,6 +20,10 @@ struct
         [] => NONE
       | (a, b) :: xs => if a = k then SOME b else lookup xs k
 
+    fun lookupBy env k f = case env of
+        [] => NONE
+      | (a, b) :: xs => if a = k andalso f b then SOME b else lookupBy xs k f
+
     (* Only update the latest binding *)
     fun update env s newV = case env of
         [] => []
@@ -109,7 +113,7 @@ struct
           | Bool (b) => BoolV b
           | Str (s) => StrV s
           | Var (s) =>
-              (case Env.lookup env s of
+              (case Env.lookupBy env s (fn v => case v of PromV(r) => (case (!r) of SOME _ => true | NONE => false) | _ => true)  of
                   SOME x => 
                     (case x of
                         PromV (r) => 
@@ -158,12 +162,14 @@ struct
           | Call (funexp, actual) =>
               let 
                 val vFn = evalEnv env funexp
-                val vAct = evalEnv env actual in
+                val vAct = evalEnv env actual 
+                val outerEnv = env
+                in
                 (case vFn of
                     ClosV { env, f } => 
                       (case f of
                           Func (funArg, funBody) =>
-                            let val newEnv = Env.empty
+                            let val newEnv = outerEnv
                                 val currEnv = Env.insert newEnv (funArg, vAct)
                             in
                               evalEnv (Env.concat env currEnv) funBody
