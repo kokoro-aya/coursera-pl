@@ -87,22 +87,71 @@ fun safe_take (i: int) (st: 'a Stream.stream): 'a list =
 
 
 
-(*
+fun seq (begin: int) (endl: int) = 
+   generate (fn x => if x >= endl then NONE else SOME (x, x + 1)) begin
 
-val seq: int -> int -> int stream  (* from / step *)
-val const: 'a -> 'a stream
-val fromList: 'a list -> 'a stream  (* EOS once list ends *)
-val replay: 'a stream -> 'a stream  (* once stream hits EOS, "restart" it *)
-val cycleList: 'a list -> 'a stream (* start afresh once list ends *)
-val map: ('a -> 'b) -> 'a stream -> 'b stream
-(* until moves along until a v with (p v) true. May not terminate. *)
-val until: ('a -> bool) -> 'a stream -> 'a * 'a stream
-val filter: ('a -> bool) -> 'a stream -> 'a stream
-val zip: 'a stream * 'b stream -> ('a * 'b) stream (* EOS when one of the streams does *)
-val pack: int -> 'a stream -> 'a list stream (* Will discard shorter list on EOS *)
-val interleave: 'a stream list -> 'a stream (* If any EOS, discard it and keep going *)
-val cumulative: ('b * 'a -> 'b) -> 'b -> 'a stream -> 'b stream
-val from_f: (int -> 'a) -> 'a stream    (* f 1, f 2, f 3, ... *)
-val iterate: 'a stream -> unit -> 'a
+fun const (v: 'a) = 
+   generate_inf (fn _ => (v, v)) v
 
-*)
+fun fromList (lst: 'a list) = 
+   generate (fn xs => case xs of [] => NONE | x :: xss => SOME (x, xss)) lst
+
+fun replay (init_st: 'a Stream.stream) = 
+   generate (fn last =>
+         case Stream.safe_next last of
+              SOME x => SOME x
+            | NONE => Stream.safe_next init_st
+   ) init_st
+fun cycleList (xs: 'a list) = 
+   replay (fromList xs)
+
+fun map (f: 'a -> 'b) (st: 'a Stream.stream) = 
+   generate (fn last => 
+      case Stream.safe_next last of
+           SOME (x, nx) => SOME (f x, nx)
+         | NONE => NONE
+   ) st
+
+fun until (f: 'a -> bool) (st: 'a Stream.stream) = 
+   generate (fn last => 
+      case Stream.safe_next last of
+           SOME (x, nx) => 
+            if f x then SOME (x, nx) else NONE
+         | NONE => NONE
+   ) st
+
+fun filter (f: 'a -> bool) (init_st: 'a Stream.stream) = 
+   generate (fn last => 
+      let fun loop st = 
+         case Stream.safe_next st of
+              SOME (x, nx) => 
+                 if f x then SOME (x, nx) else loop nx
+            | NONE => NONE
+      in
+         loop last
+      end
+   ) init_st
+
+fun zip (sa: 'a Stream. stream) (sb: 'b Stream.stream) = 
+   generate (fn (a, b) => 
+      case (Stream.safe_next a, Stream.safe_next b) of
+          (SOME (x, nx), SOME (y, ny)) => SOME ((x, y), (nx, ny))
+         | _ => NONE
+   ) (sa, sb)
+
+fun from_f (f: int -> 'a): 'a Stream.stream = 
+   map f (generate_inf (fn x => (x, x+1)) 1)
+
+fun iterate (st: 'a Stream.stream): unit -> 'a =
+   let
+    val stref = ref st
+    fun iterate_inner () = 
+      let 
+         val (x, nx) = Stream.next (!stref)
+         val _ = stref := nx
+      in
+         x
+      end
+   in 
+      iterate_inner 
+   end
