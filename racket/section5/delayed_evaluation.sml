@@ -88,7 +88,7 @@ fun safe_take (i: int) (st: 'a Stream.stream): 'a list =
 
 
 fun seq (begin: int) (endl: int) = 
-   generate (fn x => if x >= endl then NONE else SOME (x, x + 1)) begin
+   generate (fn x => if x > endl then NONE else SOME (x, x + 1)) begin
 
 fun const (v: 'a) = 
    generate_inf (fn _ => (v, v)) v
@@ -116,7 +116,7 @@ fun until (f: 'a -> bool) (st: 'a Stream.stream) =
    generate (fn last => 
       case Stream.safe_next last of
            SOME (x, nx) => 
-            if f x then SOME (x, nx) else NONE
+            if f x then NONE else SOME (x, nx)
          | NONE => NONE
    ) st
 
