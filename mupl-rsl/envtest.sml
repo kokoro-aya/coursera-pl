@@ -14,6 +14,8 @@ structure Env :> ENV = struct
         [] => NONE
       | (a, b) :: xs => if a = k then SOME b else lookup xs k
 
+    fun concat xs ys = xs @ ys
+
     val testemptyenv = 
         if null empty then () else raise TestFailedException "testemptyenv"
 

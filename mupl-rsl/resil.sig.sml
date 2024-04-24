@@ -9,6 +9,8 @@ sig
    val lookupBy: 'a env -> string -> ('a -> bool) -> 'a option
 
    val concat: 'a env -> 'a env -> 'a env
+   val map: ('a -> 'b) -> 'a env -> 'b env
+   val aggregate: (((string * 'a) * 'b env) -> 'b env) -> 'b env -> 'a env -> 'b env
 
    val dumpNames: 'a env -> string
 end

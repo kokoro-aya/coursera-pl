@@ -30,6 +30,9 @@ struct
       | (a, b) :: xs => if a = s then (a, newV) :: xs else (a, b) :: update xs s newV
 
     fun concat env1 env2 = env1 @ env2
+    fun map f ev = List.map (fn (s, v) => (s, f v)) ev
+    fun aggregate (f: ((string * 'a) * 'b env) -> 'b env) (ini: 'b env) (col: 'a env): 'b env
+      = List.foldl f ini col
 
     fun dumpNames env = joinString (List.map (fn (s, _) => s) env) ", "
   end
@@ -195,7 +198,8 @@ struct
                                   evalEnv (Env.concat env currEnv) funBody
                                 end
                               | _ => raise EvalError ("[10] call oper. must have a Func as f, got " ^ showExp f))
-                          | NONE => raise EvalError ("[11] dyn call on unresolved name " ^ name ^ ", known:" ^ (Env.dumpNames env)))
+                          | NONE => raise EvalError ("[11] dyn call on unresolved name " ^ name ^ ", known:" ^ (Env.dumpNames env))
+                          | _ => raise EvalError ("[11] dyn call on name " ^ name ^ " is not a closure"))
                   | _ => raise EvalError ("[12] dyn call must be invoked on StrV(..), got " ^ show vFLabel))
               end
           | Letrec (exps, body) =>
