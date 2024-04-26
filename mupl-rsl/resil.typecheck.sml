@@ -63,18 +63,6 @@ fun typeToString (typ: rslType): string = case typ of
       | VarT (i, _) => "X" ^ Int.toString i
 
 
-(*
-        val containsType: rslType -> rslType -> bool
-        val unify: rslType * rslType -> unit
-        val resolve: rslType -> rslType
-
-        val getConstraints: rslType E.env -> rslExp -> rslType * (rslType * rslType) list
-        val getAllConstraints: rslType E.env -> rslExp list -> rslType list * (rslType * rslType) list
-        val typecheck: rslExp -> rslType
-
-*)
-
-
 
 
 fun getConstraints (env: rslType Env.env)  (exp: Resil.rslExp): rslType * (rslType * rslType) list =
@@ -167,4 +155,60 @@ fun getConstraints (env: rslType Env.env)  (exp: Resil.rslExp): rslType * (rslTy
         | Resil.Unit => (UnitT, [])
 
 
+fun unify (left: rslType) (right: rslType) = case (left, right) of
+    (IntT, IntT) => ()
+  | (BoolT, BoolT) => ()
+  | (StrT, StrT) => ()
+  | (UnitT, UnitT) => ()
+  | (PairT(p1, p2), PairT(q1, q2)) => 
+    let val _ = unify p1 q1 in unify p2 q2 end
+  | (FuncT(f1, r1), FuncT(f2, r2)) => 
+    let val _ = unify f1 f2 in unify r1 r2 end
+  | (VarT (i, rf), VarT (j, sf)) => 
+    if i = j andalso rf = sf then () else 
+      raise TypeCheckError "Type check error"
+  | (VarT (i, rf), _) => 
+      (case (!rf) of
+          SOME v => 
+            if containsType right v then raise TypeCheckError "Type check error"
+            else unify v right
+        | NONE => raise TypeCheckError "None")
+  | (_, VarT (i, rf)) => 
+      (case (!rf) of
+          SOME v => 
+            if containsType left v then raise TypeCheckError "Type check error"
+            else unify left v
+        | NONE => raise TypeCheckError "None")
+  | _ => raise TypeCheckError "Type check error"
+
+
+and containsType (typ1: rslType) (typ2: rslType): bool = case typ1 of
+    IntT => false
+  | BoolT => false
+  | StrT => false
+  | UnitT => false
+  | PairT(t1, t2) => containsType t1 typ2 orelse containsType t2 typ2
+  | FuncT(t1, t2) => containsType t1 typ2 orelse containsType t2 typ2
+  | VarT (i, rf) =>
+      (case (!rf) of
+          SOME v => containsType v typ2 
+        | NONE => false)
+  | ParamT par => false
+
+fun resolve (typ: rslType): rslType = case typ of
+    IntT => IntT
+  | BoolT => BoolT
+  | StrT => StrT
+  | UnitT => UnitT
+  | PairT(t1, t2) => PairT(resolve t1, resolve t2)
+  | FuncT(t1, t2) => FuncT(resolve t1, resolve t2)
+  | VarT (_, ref (SOME t)) => resolve t
+  | VarT (_, ref NONE) => newParamType ()
+  | ParamT _ => typ
+
+
+fun typecheck exp =
+   let val (t, cons) = getConstraints Env.empty exp
+   in ("apply unify to all the cons"; resolve t)
+   end handle TypeCheckError s => raise TypeCheckError ("Type check failed, reason: " ^ s)
 
