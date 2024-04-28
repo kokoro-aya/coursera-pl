@@ -65,12 +65,12 @@ fun typeToString (typ: rslType): string = case typ of
 
 
 
-fun getConstraints (env: rslType Env.env)  (exp: Resil.rslExp): rslType * (rslType * rslType) list =
+fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * (rslType * rslType) list =
       case exp of
           Resil.Int _ => (IntT, [])
         | Resil.Bool _ => (BoolT, [])
         | Resil.Str _ => (StrT, [])
-        | Resil.Var s => (case Env.lookup env s of
+        | Resil.Var s => (case Resil.Env.lookup env s of
               SOME x => (x, [])
             | NONE => raise TypeCheckError ("unknown variable " ^ s))
         | Resil.Binop (_, e1, e2) =>
@@ -118,7 +118,7 @@ fun getConstraints (env: rslType Env.env)  (exp: Resil.rslExp): rslType * (rslTy
                   end
                 ) [] assigns
               val newEnv = List.foldl (fn ((s, ty), acc) => 
-                  Env.insert acc (s, ty)
+                  Resil.Env.insert acc (s, ty)
                 ) env uncheckedEnvs
               val (t1, cons1) = getConstraints newEnv body
               val allCons = (t, t1) :: cons1
@@ -169,16 +169,16 @@ fun unify (left: rslType) (right: rslType) = case (left, right) of
       raise TypeCheckError "Type check error"
   | (VarT (i, rf), _) => 
       (case (!rf) of
-          SOME v => 
-            if containsType right v then raise TypeCheckError "Type check error"
-            else unify v right
-        | NONE => raise TypeCheckError "None")
+          NONE => 
+            if containsType right left then raise TypeCheckError "Type check error"
+            else rf := SOME right
+        | SOME v => raise TypeCheckError "None")
   | (_, VarT (i, rf)) => 
       (case (!rf) of
-          SOME v => 
-            if containsType left v then raise TypeCheckError "Type check error"
-            else unify left v
-        | NONE => raise TypeCheckError "None")
+          NONE => 
+            if containsType left right then raise TypeCheckError "Type check error"
+            else rf := SOME left
+        | SOME v => raise TypeCheckError "None")
   | _ => raise TypeCheckError "Type check error"
 
 
@@ -191,9 +191,16 @@ and containsType (typ1: rslType) (typ2: rslType): bool = case typ1 of
   | FuncT(t1, t2) => containsType t1 typ2 orelse containsType t2 typ2
   | VarT (i, rf) =>
       (case (!rf) of
-          SOME v => containsType v typ2 
-        | NONE => false)
-  | ParamT par => false
+          SOME v => (
+            case typ2 of 
+                VarT (j, _) => i = j 
+              | _ => containsType v typ2)
+        | NONE => (
+            case typ2 of VarT (j, _) => i = j | _ => false))
+  | ParamT par => 
+      (case typ2 of
+          ParamT p2 => par = p2
+        | _ => false)
 
 fun resolve (typ: rslType): rslType = case typ of
     IntT => IntT
@@ -208,7 +215,7 @@ fun resolve (typ: rslType): rslType = case typ of
 
 
 fun typecheck exp =
-   let val (t, cons) = getConstraints Env.empty exp
-   in ("apply unify to all the cons"; resolve t)
+   let val (t, cons) = getConstraints Resil.Env.empty exp
+   in (List.map (fn (l, r) => unify l r) cons; resolve t)
    end handle TypeCheckError s => raise TypeCheckError ("Type check failed, reason: " ^ s)
 
