@@ -60,10 +60,14 @@ fun typeToString (typ: rslType): string = case typ of
       | PairT (l, r) => "(" ^ typeToString l ^ ", " ^ typeToString r ^ ")"
       | FuncT (a, r) => typeToString a ^ " => " ^ typeToString r
       | ParamT s => "?" ^ s
-      | VarT (i, _) => "X" ^ Int.toString i
+      | VarT (i, ty) => "X" ^ Int.toString i ^ ":" ^ (case (!ty) of
+                    NONE => "_"
+                  | SOME ity => typeToString ity)
 
 
-
+fun optTypToString (tyO: rslType option): string = case tyO of
+        SOME x => typeToString x
+      | NONE => "_"
 
 fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * (rslType * rslType) list =
       case exp of
@@ -84,7 +88,7 @@ fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * 
           let val t = newVarType()
               val (t1, cons1) = getConstraints env e1
               val (t2, cons2) = getConstraints env e2
-              val allCons = (t, t1) :: (t1, t2) :: (t2, BoolT) :: (cons1 @ cons2)
+              val allCons = (t, BoolT) :: (t1, t2) :: (cons1 @ cons2)
           in (t, allCons)
           end
         | Resil.If (cond, caseT, caseF) =>
@@ -165,21 +169,36 @@ fun unify (left: rslType) (right: rslType) = case (left, right) of
   | (FuncT(f1, r1), FuncT(f2, r2)) => 
     let val _ = unify f1 f2 in unify r1 r2 end
   | (VarT (i, rf), VarT (j, sf)) => 
-    if i = j andalso rf = sf then () else 
-      raise TypeCheckError "Type check error"
+    if i = j then
+      if rf = sf then () else raise TypeCheckError ("Duplicated type variable #" ^ Int.toString i)
+    else
+      (case ((!rf), (!sf)) of
+          (NONE, NONE) => raise TypeCheckError "Attempt to match different empty variables"
+        | (SOME ty, NONE) =>
+            sf := SOME ty
+        | (NONE, SOME ty) =>
+            rf := SOME ty
+        | (SOME ty1, SOME ty2) =>
+            if ty1 = ty2 then ()
+            else raise TypeCheckError ("L171: type variable " ^ Int.toString i ^ ":" ^ optTypToString (!rf) ^ " is not the same as " ^ Int.toString j ^ ":" ^ optTypToString (!sf))
+      )
   | (VarT (i, rf), _) => 
       (case (!rf) of
           NONE => 
-            if containsType right left then raise TypeCheckError "Type check error"
+            if containsType right left then raise TypeCheckError ("L175: Type " ^ typeToString right ^ " contains type " ^ typeToString left)
             else rf := SOME right
-        | SOME v => raise TypeCheckError "None")
+        | SOME ty => 
+          if ty = right then () else unify ty right)
+          (* raise TypeCheckError ("L176: left-hand type variable does not hold same type as right-hand side" ^ typeToString right ^ ", actual: " ^ typeToString ty) *) 
   | (_, VarT (i, rf)) => 
       (case (!rf) of
           NONE => 
-            if containsType left right then raise TypeCheckError "Type check error"
+            if containsType left right then raise TypeCheckError ("L183: Type " ^ typeToString left ^ " contains type " ^ typeToString right)
             else rf := SOME left
-        | SOME v => raise TypeCheckError "None")
-  | _ => raise TypeCheckError "Type check error"
+        | SOME ty =>
+          if ty = left then () else unify ty left)
+          (* if ty = left then () else raise TypeCheckError ("L185: right-hand type variable does not hold same type as left-hand side" ^ typeToString left ^ ", actual: " ^ typeToString ty)) *)
+  | _ => raise TypeCheckError ("L188: Type check error with " ^typeToString left ^ " and " ^typeToString right ^ "\n")
 
 
 and containsType (typ1: rslType) (typ2: rslType): bool = case typ1 of
@@ -216,6 +235,9 @@ fun resolve (typ: rslType): rslType = case typ of
 
 fun typecheck exp =
    let val (t, cons) = getConstraints Resil.Env.empty exp
-   in (List.map (fn (l, r) => unify l r) cons; resolve t)
-   end handle TypeCheckError s => raise TypeCheckError ("Type check failed, reason: " ^ s)
+   in (List.map (fn (l, r) => unify l r) (List.rev cons); 
+      let val typ = resolve t
+        in print ("Type inferred: [" ^ typeToString typ ^ "]\n")
+      end)
+   end handle TypeCheckError s => print ("Type check failed, reason: " ^ s ^ "\n")
 
