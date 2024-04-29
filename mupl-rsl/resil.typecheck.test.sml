@@ -35,13 +35,63 @@ val letrec1 = Resil.Letrec (
 
 val letrec2 = Resil.Letrec (
       [
+        ("f", Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(1)))),
         ("x", Resil.Int(3)),
         ("y", Resil.Int(4))
       ],
-      Resil.Binop(Resil.ADD, Resil.Var("y"), Resil.Var("x"))
-    )
-
+      Resil.Var("f"))
+    
 val letrec3 = Resil.Letrec (
+      [
+        ("f", Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(1)))),
+        ("x", Resil.Int(3)),
+        ("y", Resil.Int(4))
+      ],
+      Resil.Binop(Resil.ADD, Resil.Var("y"), Resil.Var("x")));
+
+val letrec4 = Resil.Letrec (
+    [
+      ("f", Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(1)))),
+      ("g", Resil.Func("x", Resil.Binop(Resil.MULT, Resil.Var("x"), Resil.Int(2)))),
+      ("z", Resil.Int(3))
+    ],
+    Resil.Pair(Resil.Var("f"), Resil.Var("g")));
+    (* Resil.Call(Resil.Var("f"), Resil.Call(Resil.Var("g"), Resil.Var("z")))) *)
+
+val letrec5 = Resil.Letrec (
+    [
+      ("f", Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(1)))),
+      ("g", Resil.Func("x", Resil.Binop(Resil.MULT, Resil.Var("x"), Resil.Int(2)))),
+      ("z", Resil.Int(3))
+    ],
+    (Resil.Call(Resil.Var("f"), Resil.Call(Resil.Var("g"), Resil.Var("z")))));
+
+(* Calls *)
+
+val call1 = Resil.Call(Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(1))), Resil.Call(Resil.Func("x", Resil.Binop(Resil.MULT, Resil.Var("x"), Resil.Int(2))), Resil.Int(3)));
+
+(* Call dyns *)
+
+(* Complex cases *)
+
+val a = Resil.If (Resil.Logop (Resil.LE, Resil.Int (3), Resil.Int (4)), Resil.Int (3), Resil.Int ( 2))
+
+
+val b = Resil.Letrec (
+    [
+      ("x", Resil.Int(1)),
+      ("y", Resil.Int(2)),
+      ("z", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Var("y")))
+    ],
+    Resil.Var("z"))
+
+val c = Resil.Call (Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(7))), Resil.Int(1))
+
+val d = Resil.Snd (Resil.Pair(Resil.Int(7), Resil.Int(2)))
+
+val e = Resil.Call (Resil.Func ("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(1))), Resil.Call(Resil.Func ("x", Resil.Binop(Resil.MULT, Resil.Var("x"), Resil.Int(2))), Resil.Int(3)))
+
+val e1 = Resil.Letrec (
     [
       ("f", Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(1)))),
       ("g", Resil.Func("x", Resil.Binop(Resil.MULT, Resil.Var("x"), Resil.Int(2)))),
@@ -49,66 +99,92 @@ val letrec3 = Resil.Letrec (
     ],
     Resil.Call(Resil.Var("f"), Resil.Call(Resil.Var("g"), Resil.Var("z"))))
 
-(* Calls *)
+(* TODO Fail, empty unification *)
+val f = Resil.Letrec (
+  [
+    ("double", Resil.Func("f", Resil.Func("#x", Resil.Call(Resil.Var("f"), Resil.Call(Resil.Var("f"), Resil.Var("#x")))))),
+    ("x", Resil.Int(4))
+  ],
 
-(* Call dyns *)
+  Resil.Call(Resil.Call(Resil.Var("double"), Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Int(2), Resil.Var("x")))), Resil.Var("x")))
 
-(* Complex cases *)
+(*
+    - getConstraints Resil.Env.empty f;
+    val it =
+      (VarT (1,ref NONE),
+      [(VarT (1,ref NONE),VarT (9,ref NONE)),
+        (VarT (11,ref NONE),FuncT (VarT (8,ref NONE),VarT (9,ref NONE))),
+        (IntT,VarT (8,ref NONE)),
+        (FuncT (VarT (2,ref NONE),FuncT (VarT (3,ref #),VarT (5,ref #))),
+        FuncT (VarT (10,ref NONE),VarT (11,ref NONE))),
+        (FuncT (VarT (12,ref NONE),VarT (13,ref NONE)),VarT (10,ref NONE)),
+        (VarT (13,ref NONE),IntT),(IntT,VarT (12,ref NONE)),
+        (VarT (12,ref NONE),IntT),
+        (VarT (2,ref NONE),FuncT (VarT (4,ref NONE),VarT (5,ref NONE))),
+        (VarT (7,ref NONE),VarT (4,ref NONE)),
+        (VarT (2,ref NONE),FuncT (VarT (6,ref NONE),VarT (7,ref NONE))),
+        (VarT (3,ref NONE),VarT (6,ref NONE))])
+      : rslType * (rslType * rslType) list
 
-(* val (ty, ccs) = getConstraints Resil.Env.empty pair1; *)
 
-(* val (c1, c2) :: (c3, c4) :: (c5, c6) :: rem = ccs; *)
+*)
+
+val f1= Resil.Func("f", Resil.Func("#x", Resil.Call(Resil.Var("f"), Resil.Var("#x"))));
+
+(*
+    - typecheck f1;
+    Type check failed, reason: Attempt to match different empty variables
+    val it = () : unit
+
+    - getConstraints Resil.Env.empty f1;
+    val it =
+      (FuncT (VarT (1,ref NONE),FuncT (VarT (2,ref NONE),VarT (4,ref NONE))),
+      [(VarT (1,ref NONE),FuncT (VarT (3,ref NONE),VarT (4,ref NONE))),
+        (VarT (2,ref NONE),VarT (3,ref NONE))])
+      : rslType * (rslType * rslType) list
+*)
+
+
+val g = Resil.Letrec(
+    [
+      ("y", Resil.Int(3)),
+      ("f", Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("y"), Resil.Var("x"))))
+    ],
+    Resil.Call(Resil.Var("f"), Resil.Int(4)))
+
+
+val g1 = Resil.Letrec(
+    [
+      ("x", Resil.Int(3)),
+      ("y", Resil.Int(4)),
+      ("z", Resil.Int(5)),
+      ("f", Resil.Func("x", 
+              Resil.Func("y", 
+                Resil.Func("z", 
+                  Resil.Letrec(
+                    [("w", Resil.Int(6))],
+                    Resil.Binop(Resil.ADD, Resil.Var("w"),
+                    Resil.Binop(Resil.ADD, Resil.Var("x"),
+                    Resil.Binop(Resil.ADD, Resil.Var("y"), Resil.Var("z"))))))))
+                  )
+                  
+    ],
+    Resil.Call(Resil.Call(Resil.Call(Resil.Var("f"), Resil.Var("x")), Resil.Var("y")), Resil.Var("z")))
+
+(* Fail unknown g *)
+val g3 = Resil.Letrec(
+  [
+    ("f", Resil.Func("x", Resil.Call(Resil.Var("g"), Resil.Unit))),
+    ("g", Resil.Func("x", Resil.Call(Resil.Var("h"), Resil.Unit))),
+    ("h", Resil.Func("x", Resil.Int(2)))
+  ],
+  Resil.Call(Resil.Var("f"), Resil.Unit))
+
+(* val (ty, ccs) = getConstraints Resil.Env.empty letrec3;; *)
+
+(* val (c1, c2) :: (c3, c4) :: (c5, c6) :: (c7, c8) :: (c9, c10) :: rem = ccs; *)
 
 (* unify c1 c2 handle TypeCheckError s => print ("Type check failed, reason: " ^ s ^ "\n");
 unify c3 c4 handle TypeCheckError s => print ("Type check failed, reason: " ^ s ^ "\n"); *)
 
-(*
 
-- c3;
-val it = VarT (3,ref (SOME (PairT (VarT (1,ref NONE),VarT (2,ref NONE)))))
-  : rslType
-- c4;
-val it = PairT (VarT (4,ref NONE),UnitT) : rslType
-
-*)
-
-(*
-- val cc1 = getConstraints Resil.Env.empty pair1;
-val cc1 =
-  (VarT (C,ref NONE),
-   [(VarT (A,ref NONE),PairT (VarT (C,ref NONE),VarT (D,ref NONE))),
-    (VarT (A,ref NONE),PairT (VarT (B,ref NONE),UnitT)),
-    (VarT (B,ref NONE),PairT (StrT,IntT))])
-  : rslType * (rslType * rslType) list
-
-
-- val cc2 = getConstraints Resil.Env.empty ex;
-val cc2 =
-  (VarT (A,ref NONE),
-   [(VarT (A,ref NONE),PairT (VarT (B,ref NONE),UnitT)),
-    (VarT (B,ref NONE),PairT (StrT,IntT))])
-  : rslType * (rslType * rslType) list
-
-*)
-
-(*
-    val cc1 = getConstraints Resil.Env.empty pair1;
-    val (ct, ccs1) = cc1;
-    val (c1, c2) :: (c3, c4) :: (c5, c6) :: rem = ccs1;
-*)
-
-(*
-- c1;
-val it = VarT (7,ref (SOME (PairT (VarT (8,ref (SOME #)),UnitT)))) : rslType
-- c2;
-val it = PairT (VarT (5,ref NONE),VarT (6,ref NONE)) : rslType
-- case c1 of VarT (_, rf) => (!rf);
-stdIn:8.1-8.33 Warning: match nonexhaustive
-          VarT (_,rf) => ...
-  
-val it = SOME (PairT (VarT (8,ref (SOME (PairT (StrT,IntT)))),UnitT))
-  : rslType option
-
-
-
-*)

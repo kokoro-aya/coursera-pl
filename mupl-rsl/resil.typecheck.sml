@@ -115,17 +115,22 @@ fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * 
         | Resil.CallDyn (funName, actual) => raise TypeCheckError "dynamic call is currently unsupported"
         | Resil.Letrec (assigns, body) =>
           let val t = newVarType()
-              val uncheckedEnvs: (string * rslType) list = List.foldl (fn ((s, v), acc) => 
-                  let val (ty, cons) = getConstraints env v
+              val (consList, uncheckedEnvs) = List.foldl (fn ((s, v), (acc, accEnv)) => 
+                  let val (ty, cons) = getConstraints accEnv v
                   in
-                    (s, ty) :: acc
+                    (((s, ty), cons) :: acc, Resil.Env.insert accEnv (s, ty))
                   end
-                ) [] assigns
-              val newEnv = List.foldl (fn ((s, ty), acc) => 
-                  Resil.Env.insert acc (s, ty)
-                ) env uncheckedEnvs
+                ) ([], Resil.Env.empty) assigns
+
+              val newEnv = Resil.Env.concat uncheckedEnvs env
+              val newCons = List.foldl (fn ((_, cons), accCons) =>
+                cons @ accCons
+              ) [] consList
+              (* val (newEnv, newCons) = List.foldl (fn (((s, ty), cons), (accEnv, accCons)) => 
+                  (Resil.Env.insert accEnv (s, ty), cons @ accCons)
+                ) (env, []) uncheckedEnvs *)
               val (t1, cons1) = getConstraints newEnv body
-              val allCons = (t, t1) :: cons1
+              val allCons = (t, t1) :: cons1 @ newCons
           in (t, allCons)
           end
         | Resil.Pair (fst, snd) =>
