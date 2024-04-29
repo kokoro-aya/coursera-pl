@@ -61,11 +61,12 @@ fun typeToString (typ: rslType): string = case typ of
       | StrT => "string"
       | UnitT => "unit"
       | PairT (l, r) => "(" ^ typeToString l ^ ", " ^ typeToString r ^ ")"
-      | FuncT (a, r) => typeToString a ^ " => " ^ typeToString r
+      | FuncT (a, r) => "(" ^ typeToString a ^ " => " ^ typeToString r ^ ")"
       | ParamT s => "?" ^ s
       | VarT (i, ty) => "X" ^ Int.toString i ^ ":" ^ (case (!ty) of
                     NONE => "_"
-                  | SOME ity => typeToString ity)
+                  | SOME ity => 
+                  typeToString ity)
 
 
 fun optTypToString (tyO: rslType option): string = case tyO of
@@ -118,6 +119,12 @@ fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * 
         | Resil.CallDyn (funName, actual) => raise TypeCheckError "dynamic call is currently unsupported"
         | Resil.Letrec (assigns, body) =>
           let val t = newVarType()
+              (*
+                  Resolve typing for each variable of the letrec block from top to button, and augmenting the environment `accEnv`
+                  after each iteration.
+                  Once the type is resolved, a new type var is added and a new constraint links it to this type.
+                  Whether this constraint is needed or not is unsure.
+              *)
               val (consList, uncheckedEnvs) = List.foldl (fn ((s, v), (acc, accEnv)) => 
                   let val (ty, cons) = getConstraints accEnv v
                       val newVar = newVarType ()
@@ -126,18 +133,20 @@ fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * 
                   end
                 ) ([], Resil.Env.empty) assigns
 
+              (* Prepend the new environment to existing env list *)
               val newEnv = Resil.Env.concat uncheckedEnvs env
+              (* Flatten the constraint List *)
               val newCons = List.foldl (fn ((_, cx), accCons) =>
                 cx @ accCons
               ) [] consList
 
-
-              val _ = List.map (fn ((_, ty), pairs) => let 
+              (* Debug commands *)
+              (* val _ = List.map (fn ((_, ty), pairs) => let 
                       
                       val _ = print "\n>>>\n"
                       val _ = print (typeToString ty ^ "\t") 
                       val _ = List.map (fn (f, s) => print ((typeToString f) ^ " ; " ^ (typeToString s) ^ "\t")) pairs
-                      in () end ) consList
+                      in () end ) consList *)
 
               val (t1, cons1) = getConstraints newEnv body
               val allCons = (t, t1) :: cons1 @ newCons
@@ -184,10 +193,14 @@ fun unify (left: rslType) (right: rslType) = case (left, right) of
   | (FuncT(f1, r1), FuncT(f2, r2)) => 
     let val _ = unify f1 f2 in unify r1 r2 end
   | (VarT (i, rf), VarT (j, sf)) => 
+    (* Assert that two type vars with same index should be equal *)
     if i = j then
       if rf = sf then () else raise TypeCheckError ("Duplicated type variable #" ^ Int.toString i)
     else
+      (* Unification of two different type vars *)
       (case ((!rf), (!sf)) of
+          (* Case both are empty, since they should be equivalent, we assign a new type param => 
+                it could be later set to concrete type or left abstract *)
           (NONE, NONE) => 
             let val newPara = newParamType ()
             in rf := SOME newPara ; sf := SOME newPara
@@ -196,24 +209,28 @@ fun unify (left: rslType) (right: rslType) = case (left, right) of
             sf := SOME ty
         | (NONE, SOME ty) =>
             rf := SOME ty
+          (* Both sides holds something ... *)
         | (SOME ty1, SOME ty2) =>
             (case (ty1, ty2) of
+                (* We now know that two type params are equivalent, so one of them can be substituted by another *)
                 (ParamT s1, ParamT s2) => if s1 = s2 then ()
                   else
                     rf := SOME ty2
+                (* Cases where a type param is equivalent to a concrete type, so it could be substituted by it *)
               | (ParamT _, IntT) => rf := SOME ty2
               | (ParamT _, BoolT) => rf := SOME ty2
               | (ParamT _, StrT) => rf := SOME ty2
               | (ParamT _, UnitT) => rf := SOME ty2
               | (ParamT _, PairT _) => rf := SOME ty2
               | (ParamT _, FuncT _) => rf := SOME ty2
-
+                (* Mirror cases *)
               | (IntT, ParamT _) => sf := SOME ty1
               | (BoolT, ParamT _) => sf := SOME ty1
               | (StrT, ParamT _) => sf := SOME ty1
               | (UnitT, ParamT _) => sf := SOME ty1
               | (PairT _, ParamT _) => sf := SOME ty1
               | (FuncT _, ParamT _) => sf := SOME ty1
+                (* Not concerned, proceed to unification of what it holds *)
               | _ => unify ty1 ty2
             ))
   | (VarT (i, rf), _) => 
@@ -232,7 +249,9 @@ fun unify (left: rslType) (right: rslType) = case (left, right) of
         | SOME ty =>
           if ty = left then () else unify ty left)
           (* if ty = left then () else raise TypeCheckError ("L185: right-hand type variable does not hold same type as left-hand side" ^ typeToString left ^ ", actual: " ^ typeToString ty)) *)
-
+    (* Resolution of params in top level
+          Ideally, this arm should be handled with upper side where params are handled inside refs
+     *)
   | (ParamT s1, ParamT s2) => 
       if s1 = s2 then () else raise TypeCheckError ("L211: Param clash with " ^ s1 ^ " and " ^ s2)
   | _ => raise TypeCheckError ("L188: Type check error with " ^typeToString left ^ " and " ^typeToString right ^ "\n")

@@ -18,7 +18,7 @@ The assignments could be found in this [GitHub repo](https://github.com/edombows
 
 As for the organization of this repo, it's roughly split into three subfolders, the `racket` and `sml` directories contains codes for extra problems (and maybe practical problems if I decide to).
 
-The `mupl-rsl` directory contains my implementation of MUPL and RSL in SML environment.
+The `mupl-rsl` directory contains my implementation of MUPL and RSL in SML environment, as well as a simple typing/inference mechanism.
 
 Feel free to check [my gist](https://gist.github.com/kokoro-aya/961bbd987a2604093873e40ced35bdac) if you want to investigate into the Racket implementation (Part 1).
 

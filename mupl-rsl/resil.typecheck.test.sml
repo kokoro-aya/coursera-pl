@@ -108,6 +108,7 @@ val f = Resil.Letrec (
 
   Resil.Call(Resil.Call(Resil.Var("double"), Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Int(2), Resil.Var("x")))), Resil.Var("x")))
 
+
 (*
     - getConstraints Resil.Env.empty f;
     val it =
@@ -129,10 +130,14 @@ val f = Resil.Letrec (
 
 *)
 
+val f_ = Resil.Func("f", Resil.Func("#x", Resil.Call(Resil.Var("f"), Resil.Var("#x"))))
+val f0 = Resil.Func("f", Resil.Func("#x", Resil.Call(Resil.Var("f"), Resil.Call(Resil.Var("f"), Resil.Var("#x")))))
+
 val f1 = Resil.Letrec (
   [
     ("double", Resil.Func("f", Resil.Func("#x", Resil.Call(Resil.Var("f"), Resil.Call(Resil.Var("f"), Resil.Var("#x")))))),
-    ("x", Resil.Int(4))
+    ("x", Resil.Int(4)),
+    ("y", Resil.Int(5))
   ],
   Resil.Var("double"));
 

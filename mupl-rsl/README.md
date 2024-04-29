@@ -12,8 +12,19 @@ The following files are used for this purpose:
 - mupl.sml        -- Implementation of MUPL Evaluator
 - mupltest.sml    -- Test suites for this evaluator
 
+- resil.sig.sml   -- Signatures for the extended Resil language
+- resil.lang.sml  -- Language implementation
+- resil.test.sml  -- Testing cases for Resil
+
+- resil.typecheck.sml       -- Implementation of typecheck mechanism
+- resil.typecheck.test.sml  -- Testing cases for typecheck feature
+
 The last part is an extension of MUPL into Resil. Sig and data types have been adapted following directions of the [coursera pl extra assignments](https://github.com/edombowsky/coursera-pl/blob/master/assignments/section6/ExtraProblems.md).
 
 I have added a minimum of new language structures for my purpose, like CallDyn and Str.
 
-I am currently working with the last part of this assignment, i.e. the type checking. But a more extended version of the language is planned, to add new supports like pattern matching, records, etc.
+The typecheck feature should be roughly done, but developing this feature in pure SML environment is quite painful. Globally, the typecheck works for simple types like literals, variables, functions or tuples, with a limited usage of variables, like `fn x => fn y => x + y`. Some polymorphism works, like `fn f => fn x => f x`, but more complex functions like `val double = fn f => fn x => f f x` won't be properly inferred.
+
+The further development of language and typing are planned on the Scala port since it's painful to develop in pure SML environment without any debugger or IDE support.
+
+The code of typecheck was a bit messy as the explanation of typecheck in assignment was a bit blurry and the algorithm itself was not so straightforward.
