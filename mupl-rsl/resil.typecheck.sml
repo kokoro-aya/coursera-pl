@@ -99,9 +99,9 @@ fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * 
               val allCons = (t, t2) :: (t, t3) :: (t2, t3) :: (t1, BoolT) :: (cons1 @ cons2 @ cons3)
           in (t, allCons)
           end
-        | Resil.Func (_, exp) => 
+        | Resil.Func (ar, exp) => 
           let val t1 = newVarType()
-              val (t2, cons) = getConstraints env exp
+              val (t2, cons) = getConstraints (Resil.Env.insert env (ar, t1)) exp
           in (FuncT(t1, t2), cons)
           end
         | Resil.Call (funExp, actual) =>

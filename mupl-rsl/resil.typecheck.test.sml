@@ -9,14 +9,55 @@ val bin1 = Resil.Binop(Resil.ADD, Resil.Int(3), Resil.Int(4));
 val bin2 = Resil.Logop(Resil.LE, Resil.Int(3), Resil.Int(4));
 val bin3 = Resil.Logop(Resil.EQ, Resil.Bool(true), Resil.Bool(false));
 
-val pair1 = Resil.Fst(Resil.Pair(Resil.Pair(Resil.Str("foo"), Resil.Int(3)), Resil.Unit));
-val pair2 = Resil.Snd(Resil.Pair(Resil.Pair(Resil.Unit, Resil.Int(4)), Resil.Pair(Resil.Pair(Resil.Int(9), Resil.Str("bar")), Resil.Unit)));
+val pairfst = Resil.Fst(Resil.Pair(Resil.Pair(Resil.Str("foo"), Resil.Int(3)), Resil.Unit));
+val pairsnd = Resil.Snd(Resil.Pair(Resil.Pair(Resil.Unit, Resil.Int(4)), Resil.Pair(Resil.Pair(Resil.Int(9), Resil.Str("bar")), Resil.Unit)));
+
+(* isAPair *)
 
 val if1 = Resil.If (Resil.Logop (Resil.LE, Resil.Int (3), Resil.Int (4)), Resil.Int (3), Resil.Int (2));
 
-val (ty, ccs) = getConstraints Resil.Env.empty pair1;
+(* Functions *)
 
-val (c1, c2) :: (c3, c4) :: (c5, c6) :: rem = ccs;
+val func1 = Resil.Func("x", Resil.Int(1));
+val func2 = Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Int(3), Resil.Var("x")));
+val func3 = Resil.Func("x", Resil.Func("y", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Var("y"))));
+
+(* TODO: Function that could be generic *)
+
+val fnGen1 = Resil.Func("x", Resil.Var("x"));
+
+(* Letrecs *)
+
+val letrec1 = Resil.Letrec (
+      [("x", Resil.Int(3))],
+      Resil.Var("x")
+    )
+
+val letrec2 = Resil.Letrec (
+      [
+        ("x", Resil.Int(3)),
+        ("y", Resil.Int(4))
+      ],
+      Resil.Binop(Resil.ADD, Resil.Var("y"), Resil.Var("x"))
+    )
+
+val letrec3 = Resil.Letrec (
+    [
+      ("f", Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Var("x"), Resil.Int(1)))),
+      ("g", Resil.Func("x", Resil.Binop(Resil.MULT, Resil.Var("x"), Resil.Int(2)))),
+      ("z", Resil.Int(3))
+    ],
+    Resil.Call(Resil.Var("f"), Resil.Call(Resil.Var("g"), Resil.Var("z"))))
+
+(* Calls *)
+
+(* Call dyns *)
+
+(* Complex cases *)
+
+(* val (ty, ccs) = getConstraints Resil.Env.empty pair1; *)
+
+(* val (c1, c2) :: (c3, c4) :: (c5, c6) :: rem = ccs; *)
 
 (* unify c1 c2 handle TypeCheckError s => print ("Type check failed, reason: " ^ s ^ "\n");
 unify c3 c4 handle TypeCheckError s => print ("Type check failed, reason: " ^ s ^ "\n"); *)
