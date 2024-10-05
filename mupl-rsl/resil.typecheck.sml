@@ -73,7 +73,7 @@ fun optTypToString (tyO: rslType option): string = case tyO of
         SOME x => typeToString x
       | NONE => "_"
 
-fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * (rslType * rslType) list =
+fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp) (outerCons: (rslType * rslType) list): rslType * (rslType * rslType) list =
       case exp of
           Resil.Int _ => (IntT, [])
         | Resil.Bool _ => (BoolT, [])
@@ -83,38 +83,38 @@ fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * 
             | NONE => raise TypeCheckError ("unknown variable " ^ s))
         | Resil.Binop (_, e1, e2) =>
           let val t = newVarType()
-              val (t1, cons1) = getConstraints env e1
-              val (t2, cons2) = getConstraints env e2
+              val (t1, cons1) = getConstraints env e1 outerCons
+              val (t2, cons2) = getConstraints env e2 outerCons
               val allCons = (t, t1) :: (t1, t2) :: (t2, IntT) :: (cons1 @ cons2)
           in (t, allCons)
           end
         | Resil.Logop (_, e1, e2) =>
           let val t = newVarType()
-              val (t1, cons1) = getConstraints env e1
-              val (t2, cons2) = getConstraints env e2
+              val (t1, cons1) = getConstraints env e1 outerCons
+              val (t2, cons2) = getConstraints env e2 outerCons
               val allCons = (t, BoolT) :: (t1, t2) :: (cons1 @ cons2)
           in (t, allCons)
           end
         | Resil.If (cond, caseT, caseF) =>
           let val t = newVarType()
-              val (t1, cons1) = getConstraints env cond
-              val (t2, cons2) = getConstraints env caseT
-              val (t3, cons3) = getConstraints env caseF
+              val (t1, cons1) = getConstraints env cond outerCons
+              val (t2, cons2) = getConstraints env caseT outerCons
+              val (t3, cons3) = getConstraints env caseF outerCons
               val allCons = (t, t2) :: (t, t3) :: (t2, t3) :: (t1, BoolT) :: (cons1 @ cons2 @ cons3)
           in (t, allCons)
           end
         | Resil.Func (ar, exp) => 
           let val t1 = newVarType()
-              val (t2, cons) = getConstraints (Resil.Env.insert env (ar, t1)) exp
+              val (t2, cons) = getConstraints (Resil.Env.insert env (ar, t1)) exp outerCons
           in (FuncT(t1, t2), cons)
           end
         | Resil.Call (funExp, actual) =>
           let val x1 = newVarType()
-              val x2 = newVarType()
-              val (t1, cons1) = getConstraints env funExp
-              val (t2, cons2) = getConstraints env actual
-              val allCons = (t1, FuncT(x1, x2)) :: (t2, x1) :: (cons1 @ cons2)
-          in (x2, allCons)
+              val (t1, cons1) = getConstraints env funExp outerCons
+              val (t2, cons2) = getConstraints env actual outerCons
+              val allCons = (t1, FuncT(t2, x1)) :: (cons1 @ cons2)
+              val _ = List.map (fn (l, r) => unify l r) (List.rev (allCons @ outerCons))
+          in (x1, allCons)
           end
         | Resil.CallDyn (funName, actual) => raise TypeCheckError "dynamic call is currently unsupported"
         | Resil.Letrec (assigns, body) =>
@@ -126,7 +126,7 @@ fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * 
                   Whether this constraint is needed or not is unsure.
               *)
               val (consList, uncheckedEnvs) = List.foldl (fn ((s, v), (acc, accEnv)) => 
-                  let val (ty, cons) = getConstraints accEnv v
+                  let val (ty, cons) = getConstraints accEnv v outerCons
                       val newVar = newVarType ()
                   in
                     (((s, ty), (ty, newVar) :: cons) :: acc, Resil.Env.insert accEnv (s, ty))
@@ -148,42 +148,42 @@ fun getConstraints (env: rslType Resil.Env.env)  (exp: Resil.rslExp): rslType * 
                       val _ = List.map (fn (f, s) => print ((typeToString f) ^ " ; " ^ (typeToString s) ^ "\t")) pairs
                       in () end ) consList *)
 
-              val (t1, cons1) = getConstraints newEnv body
+              val (t1, cons1) = getConstraints newEnv body outerCons
               val allCons = (t, t1) :: cons1 @ newCons
           in (t, allCons)
           end
         | Resil.Pair (fst, snd) =>
           let val t = newVarType()
-              val (t2, cons1) = getConstraints env fst
-              val (t3, cons2) = getConstraints env snd
+              val (t2, cons1) = getConstraints env fst outerCons
+              val (t3, cons2) = getConstraints env snd outerCons
               val allCons = (t, PairT(t2, t3)) :: cons1 @ cons2
           in (t, allCons)
           end
         | Resil.IsAPair e => 
           let val t1 = newVarType()
               val t2 = newVarType()
-              val (t3, cons) = getConstraints env e
+              val (t3, cons) = getConstraints env e outerCons
               val allCons = (t3, PairT(t1, t2)) :: cons
           in (BoolT, allCons)
           end
         | Resil.Fst e =>
           let val t1 = newVarType()
               val t2 = newVarType()
-              val (t3, cons) = getConstraints env e
+              val (t3, cons) = getConstraints env e outerCons
               val allCons = (t3, PairT(t1, t2)) :: cons
           in (t1, allCons)
           end
         | Resil.Snd e => 
           let val t1 = newVarType()
               val t2 = newVarType()
-              val (t3, cons) = getConstraints env e
+              val (t3, cons) = getConstraints env e outerCons
               val allCons = (t3, PairT(t1, t2)) :: cons
           in (t2, allCons)
           end
         | Resil.Unit => (UnitT, [])
 
 
-fun unify (left: rslType) (right: rslType) = case (left, right) of
+and unify (left: rslType) (right: rslType) = case (left, right) of
     (IntT, IntT) => ()
   | (BoolT, BoolT) => ()
   | (StrT, StrT) => ()
@@ -294,7 +294,7 @@ fun resolve (typ: rslType): rslType = case typ of
 
 
 fun typecheck exp =
-   let val (t, cons) = getConstraints Resil.Env.empty exp
+   let val (t, cons) = getConstraints Resil.Env.empty exp []
    in (List.map (fn (l, r) => unify l r) (List.rev cons); 
       let val typ = resolve t
           val _ = resetParamType ()

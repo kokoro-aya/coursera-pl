@@ -108,28 +108,6 @@ val f = Resil.Letrec (
 
   Resil.Call(Resil.Call(Resil.Var("double"), Resil.Func("x", Resil.Binop(Resil.ADD, Resil.Int(2), Resil.Var("x")))), Resil.Var("x")))
 
-
-(*
-    - getConstraints Resil.Env.empty f;
-    val it =
-      (VarT (1,ref NONE),
-      [(VarT (1,ref NONE),VarT (9,ref NONE)),
-        (VarT (11,ref NONE),FuncT (VarT (8,ref NONE),VarT (9,ref NONE))),
-        (IntT,VarT (8,ref NONE)),
-        (FuncT (VarT (2,ref NONE),FuncT (VarT (3,ref #),VarT (5,ref #))),
-        FuncT (VarT (10,ref NONE),VarT (11,ref NONE))),
-        (FuncT (VarT (12,ref NONE),VarT (13,ref NONE)),VarT (10,ref NONE)),
-        (VarT (13,ref NONE),IntT),(IntT,VarT (12,ref NONE)),
-        (VarT (12,ref NONE),IntT),
-        (VarT (2,ref NONE),FuncT (VarT (4,ref NONE),VarT (5,ref NONE))),
-        (VarT (7,ref NONE),VarT (4,ref NONE)),
-        (VarT (2,ref NONE),FuncT (VarT (6,ref NONE),VarT (7,ref NONE))),
-        (VarT (3,ref NONE),VarT (6,ref NONE))])
-      : rslType * (rslType * rslType) list
-
-
-*)
-
 val f_ = Resil.Func("f", Resil.Func("#x", Resil.Call(Resil.Var("f"), Resil.Var("#x"))))
 val f0 = Resil.Func("f", Resil.Func("#x", Resil.Call(Resil.Var("f"), Resil.Call(Resil.Var("f"), Resil.Var("#x")))))
 
@@ -146,69 +124,6 @@ val fx = Resil.Letrec (
     ("x", Resil.Int(4))
   ],
   Resil.Var("x"));
-
-
-(*
-    - val (ty, ccs) = getConstraints Resil.Env.empty f1;
-
-      val ty = VarT (1,ref NONE) : rslType
-      val ccs =
-        [(VarT (1,ref NONE),
-          FuncT (VarT (2,ref NONE),FuncT (VarT (3,ref NONE),VarT (5,ref NONE)))),
-        (VarT (2,ref NONE),FuncT (VarT (4,ref NONE),VarT (5,ref NONE))),
-        (VarT (7,ref NONE),VarT (4,ref NONE)),
-        (VarT (2,ref NONE),FuncT (VarT (6,ref NONE),VarT (7,ref NONE))),
-        (VarT (3,ref NONE),VarT (6,ref NONE))] : (rslType * rslType) list
-
-    - val (c1, c2) :: (c3, c4) :: (c5, c6) :: (c7, c8) :: (c9, c10) :: rem = ccs;
-
-      stdIn:2.5-2.75 Warning: binding not exhaustive
-                (c1,c2) :: (c3,c4) :: (c5,c6) :: (c7,c8) :: (c9,c10) :: rem = ...
-      val c1 = VarT (1,ref NONE) : rslType
-      val c2 = FuncT (VarT (2,ref NONE),FuncT (VarT (3,ref NONE),VarT (5,ref NONE)))
-        : rslType
-      val c3 = VarT (2,ref NONE) : rslType
-      val c4 = FuncT (VarT (4,ref NONE),VarT (5,ref NONE)) : rslType
-      val c5 = VarT (7,ref NONE) : rslType
-      val c6 = VarT (4,ref NONE) : rslType
-      val c7 = VarT (2,ref NONE) : rslType
-      val c8 = FuncT (VarT (6,ref NONE),VarT (7,ref NONE)) : rslType
-      val c9 = VarT (3,ref NONE) : rslType
-      val c10 = VarT (6,ref NONE) : rslType
-      val rem = [] : (rslType * rslType) list
-- 
-    - unify c10 c9;
-      val it = () : unit
-      - unify c8 c7;
-      val it = () : unit
-      - unify c6 c5;
-      val it = () : unit
-      - c4;
-      val it = FuncT (VarT (4,ref (SOME (ParamT "B"))),VarT (5,ref NONE)) : rslType
-      - c3;
-      val it = 
-        VarT (2,ref (SOME (FuncT (VarT (6,ref (SOME (ParamT "A")))),VarT (VarT (7,ref (SOME (ParamT "B")))))))
-        : rslType
-
-
-      - c10;
-      val it = VarT (6,ref (SOME (ParamT "A"))) : rslType
-      - c9;
-      val it = VarT (3,ref (SOME (ParamT "A"))) : rslType
-      - c8;
-      val it =
-        FuncT (VarT (6,ref (SOME (ParamT "A"))),VarT (7,ref (SOME (ParamT "B"))))
-        : rslType
-      - c7;
-      val it =
-        VarT (2,ref (SOME (FuncT (VarT (6,ref (SOME #)),VarT (7,ref (SOME #))))))
-        : rslType
-      - c6;
-      val it = VarT (4,ref (SOME (ParamT "B"))) : rslType
-      - c5;
-      val it = VarT (7,ref (SOME (ParamT "B"))) : rslType
-      - 
-*)
 
 val f2 = Resil.Letrec (
   [
