@@ -33,3 +33,11 @@ Every section has one to three challenge questions that are part of the homework
 You will need Visual Studio Code + Millet (SML extension) as well as a SML package installed in your path to run codes suffixed with `.sml`.
 
 You will need DrRacket for running `.rkt` codes.
+
+### Related works
+
+For the MUPL-RSL part of this repository, see my [new project](https://github.com/kokoro-aya/hatsuharu) to refer a complete and up-to-day version of the compiler code.
+
+This new project is written under Scala. Based on MUPL/Resil implementation, I will add new features and improve the compiler design over time. It will eventually be a new project aside but the core idea holds.
+
+The SML code in the current project will not be actively maintained.
